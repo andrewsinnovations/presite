@@ -4,6 +4,7 @@ import markdown
 import frontmatter
 import chevron
 import datetime
+import json
 from pathlib import Path
 
 class Generator:
@@ -18,7 +19,7 @@ class Generator:
     self.dest_path_elements = list(filter(lambda x: x != '' and x != '.', self.dest_path_elements))
     self.is_markdown = is_markdown
 
-  def generate(self):
+  def generate(self, presite):
     parsed = frontmatter.loads(self.content)
 
     self.config.update(parsed)
@@ -37,7 +38,7 @@ class Generator:
 
     if 'template' in combined_config:
       #print('opening template' + combined_config['template'])
-      with open('./templates/' + combined_config['template'] + '.html') as f:
+      with open(presite.selected_template_folder() + combined_config['template'] + '.html') as f:
         template = f.read()
 
     result = chevron.render(template, combined_config)
@@ -84,23 +85,39 @@ class Presite:
   def __init__(self):
     self.data_loaders = []
     self.data = {}
+    self.build_config = {}
+    self.global_config = {}
     pass
 
   def register_data_loader(self, loader):
     self.data_loaders.append(loader)
     pass
 
+  def selected_template_folder(self):
+    if 'selected_template' not in self.build_config or self.build_config['selected_template'] == '':
+      return './templates/default/'
+
+    return './templates/' + self.build_config['selected_template'] + '/'
+
   def begin_build(self):
+    if os.path.exists('./build_config.json'):
+      with open('./build_config.json', 'r') as f:
+        self.build_config = json.load(f)
+
+    if os.path.exists('./global_config.json'):
+      with open('./build_config.json', 'r') as f:
+        self.global_config = json.load(f)
+
     if os.path.exists('./output'):
       shutil.rmtree('./output')
 
     os.mkdir('./output')
     os.mkdir('./output/site')
 
-    template_folders = next(os.walk('./templates'))[1]
+    template_folders = next(os.walk(self.selected_template_folder()))[1]
 
     for f in template_folders:
-      shutil.copytree('./templates/' + f, './output/site/' + f)
+      shutil.copytree(self.selected_template_folder() + f, './output/site/' + f)
 
   def list_pages(self):
     return os.listdir('./pages')
@@ -110,6 +127,7 @@ class Presite:
 
   def load_data(self):
     for dl in self.data_loaders:
+      print("Loading data for " + dl.name + '...')
       self.data[dl.name] = dl.load()
 
   def end_build(self):
@@ -119,11 +137,11 @@ class Presite:
     pages = self.list_pages()
 
     for p in pages:
-      print('Processing page ' + p + '...')
+      #print('Processing page ' + p + '...')
       ext = os.path.splitext(p)
       
       sfg = SourceFileGenerator('./pages/' + p, './output/site/' + ext[0] + '.html', {'data': self.data})
-      sfg.generate()
+      sfg.generate(self)
 
   def build_posts(self):
     for p in self.list_posts():
@@ -132,14 +150,14 @@ class Presite:
       postdate = datetime.date(int(date[0]), int(date[1]), int(date[2]))
 
       if postdate <= datetime.date.today():
-        print('Processing post ' + p + '...')
+        #print('Processing post ' + p + '...')
         ext = os.path.splitext(p)
         slugext = os.path.splitext(slug)
       
         outpath = './output/site/' + str(postdate.year) + '/' + str(postdate.month).rjust(2, '0') + '/' + str(postdate.day).rjust(2, '0') + '/' + slugext[0] + '.html'
 
         sfg = SourceFileGenerator('./posts/' + p, outpath, {'data': self.data})
-        sfg.generate()
+        sfg.generate(self)
       else:
         print('Skipped post ' + p + '...')
 
@@ -150,16 +168,15 @@ class Presite:
     self.build_posts()
     self.end_build()
 
-class SampleDataLoader(DataLoader):
+class ColorDataLoader(DataLoader):
   def __init__(self):
-    super().__init__()
-
-    self.name = 'SampleDataLoader'
+    self.name = "colors";
 
   def load(self):
-    return {'test': 12345}
+    with open('./data/colors.json', 'r') as f:
+      return json.load(f)
 
 if __name__ == '__main__':
   p = Presite()
-  p.register_data_loader(SampleDataLoader())
+  p.register_data_loader(ColorDataLoader())
   p.run()

@@ -1,0 +1,11 @@
+.colorswatch {
+	float:left;
+	width:100px;
+	height:100px;
+	padding:4px;
+}
+
+.text-colorswatch {
+	background-color:#ddd;
+	font-size:75%
+}

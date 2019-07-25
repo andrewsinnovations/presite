@@ -3,21 +3,23 @@ title: Hello World!
 template: page
 ---
 
-Hello, world!
+# Hello, world!
 
-This is some sample text.  
-This is broken onto a new line.
+Welcome to a site generated with [Presite](https://www.github.com/andrewsinnovations/presite). 
+
+Presite is a simple and flexible static site generator, written with Python3.
+
+Presite supports pages and posts written in Markdown or in HTML:
 
 * Item 1
 * Item 2
 * Item 3
 
-Here is a new list
+Here are some standard web browser colors, which were loaded in from a JSON data file:
 
-1. Item 1
-2. Item 2
-3. Item 3
+<div class="row">
+{{#data.colors}}<div class="colorswatch" style="background-color:{{hex}};"><span class="text-colorswatch">{{name}}<br/>{{hex}}</span></div>
+{{/data.colors}}
+</div>
 
-my favorite search engine is [Duck Duck Go](http://www.duckduckgo.com)
-
-Sample Data: {{data.SampleDataLoader.test}}
+[Here is a link to another page.](sample2.html)
