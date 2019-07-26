@@ -99,6 +99,19 @@ class Presite:
     return './templates/' + self.build_config['selected_template'] + '/'
 
   def begin_build(self):
+    if not os.path.exists('data'):
+      os.mkdir('./data')
+
+    if not os.path.exists('pages'):
+      os.mkdir('./pages')
+
+    if not os.path.exists('posts'):
+      os.mkdir('./posts')
+
+    if not os.path.exists('templates'):
+      os.mkdir('./templates')
+      os.mkdir('./templates/default')
+
     if os.path.exists('./build_config.json'):
       with open('./build_config.json', 'r') as f:
         self.build_config = json.load(f)
@@ -119,9 +132,28 @@ class Presite:
       shutil.copytree(self.selected_template_folder() + f, './output/site/' + f)
 
     self.global_config['posts'] = self.list_post_metadata()
+    self.global_config['pages'] = self.list_page_metadata()
 
   def list_pages(self):
     return os.listdir('./pages')
+
+  def list_page_metadata(self):
+    metadata = []
+
+    for p in self.list_pages():
+      fm = frontmatter.load('./pages/' + p)
+      ext = os.path.splitext(p)
+
+      page = {
+        "filename": p,
+        "url": '/' + ext[0] + '.html',
+        "title": fm['title'] if 'title' in fm else '',
+        "template": fm['template'] if 'template' in fm else ''
+      }
+
+      metadata.append(page)
+
+    return metadata
 
   def list_posts(self):
     return os.listdir('./posts')
@@ -140,6 +172,7 @@ class Presite:
       draft = False if ('status' in fm and fm['status'] == 'draft') or postdate < datetime.datetime.now() else 'published'
 
       post = {
+        "filename": p,
         "slug": slug,
         "url": '/' + str(postdate.year) + '/' + str(postdate.month).rjust(2, '0') + '/' + str(postdate.day).rjust(2, '0') + '/' + slugext[0] + '.html',
         "publish_date": postdate,
@@ -154,6 +187,16 @@ class Presite:
 
   def load_data(self):
     self.global_config['data'] = {}
+
+    for data in os.listdir('./data'):
+      ext = os.path.splitext(data)
+
+      if ext[1] == '.json':
+        print('Loading ./data/' + data)
+
+        with open('./data/' + ext[0] + '.json', 'r') as f:
+          self.global_config['data'][ext[0]] = json.load(f)
+          
 
     for dl in self.data_loaders:
       print("Loading data for " + dl.name + '...')
@@ -173,22 +216,16 @@ class Presite:
       sfg.generate(self)
 
   def build_posts(self):
-    for p in self.list_posts():
-      date = p[0:10].split('_')
-      slug = p[11:]
-      postdate = datetime.datetime(int(date[0]), int(date[1]), int(date[2]))
-
-      if postdate <= datetime.datetime.now():
-        #print('Processing post ' + p + '...')
-        ext = os.path.splitext(p)
-        slugext = os.path.splitext(slug)
+    for p in self.list_post_metadata():
+      if p['publish_date'] <= datetime.datetime.now():
       
-        outpath = './output/site/' + str(postdate.year) + '/' + str(postdate.month).rjust(2, '0') + '/' + str(postdate.day).rjust(2, '0') + '/' + slugext[0] + '.html'
+        outpath = './output/site' + p['url']
+        self.global_config['publish_date'] = p['publish_date']
 
-        sfg = SourceFileGenerator('./posts/' + p, outpath, self.global_config)
+        sfg = SourceFileGenerator('./posts/' + p['filename'], outpath, self.global_config)
         sfg.generate(self)
       else:
-        print('Skipped post ' + p + '...')
+        print('Skipped post ' + p['filename'] + '...')
 
   def run(self):
     self.begin_build()
@@ -197,15 +234,6 @@ class Presite:
     self.build_posts()
     self.end_build()
 
-class ColorDataLoader(DataLoader):
-  def __init__(self):
-    self.name = "colors";
-
-  def load(self):
-    with open('./data/colors.json', 'r') as f:
-      return json.load(f)
-
 if __name__ == '__main__':
   p = Presite()
-  p.register_data_loader(ColorDataLoader())
   p.run()
