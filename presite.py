@@ -2,9 +2,9 @@ import os
 import shutil
 import markdown
 import frontmatter
-import chevron
 import datetime
 import json
+from jinja2 import Template
 from pathlib import Path
 
 class Generator:
@@ -27,21 +27,21 @@ class Generator:
     if self.is_markdown:
       parsed.content = markdown.markdown(parsed.content)
 
-    result = chevron.render(parsed.content, self.config)
+    template = Template(parsed.content)
+
+    result = template.render(self.config)
 
     combined_config = self.config
     combined_config['content'] = result
 
-    #print(combined_config)
-
-    template = '{{{content}}}'
+    templatetxt = '{{content}}'
 
     if 'template' in combined_config:
-      #print('opening template' + combined_config['template'])
       with open(presite.selected_template_folder() + combined_config['template'] + '.html') as f:
-        template = f.read()
+        templatetxt = f.read()
 
-    result = chevron.render(template, combined_config)
+    template = Template(templatetxt)
+    result = template.render(combined_config)
 
     currentdir = './'
     
@@ -84,7 +84,6 @@ class DataLoader:
 class Presite:
   def __init__(self):
     self.data_loaders = []
-    self.data = {}
     self.build_config = {}
     self.global_config = {}
     pass
@@ -119,16 +118,46 @@ class Presite:
     for f in template_folders:
       shutil.copytree(self.selected_template_folder() + f, './output/site/' + f)
 
+    self.global_config['posts'] = self.list_post_metadata()
+
   def list_pages(self):
     return os.listdir('./pages')
 
   def list_posts(self):
     return os.listdir('./posts')
 
+  def list_post_metadata(self):
+    metadata = []
+    for p in self.list_posts():
+      date = p[0:10].split('_')
+      slug = p[11:]
+      postdate = datetime.datetime(int(date[0]), int(date[1]), int(date[2]))
+      ext = os.path.splitext(p)
+      slugext = os.path.splitext(slug)
+
+      fm = frontmatter.load('./posts/' + p)
+
+      draft = False if ('status' in fm and fm['status'] == 'draft') or postdate < datetime.datetime.now() else 'published'
+
+      post = {
+        "slug": slug,
+        "url": '/' + str(postdate.year) + '/' + str(postdate.month).rjust(2, '0') + '/' + str(postdate.day).rjust(2, '0') + '/' + slugext[0] + '.html',
+        "publish_date": postdate,
+        "title": fm['title'] if 'title' in fm else '',
+        "template": fm['template'] if 'template' in fm else '',
+        "status": 'draft' if draft else 'published'
+      }
+
+      metadata.append(post)
+
+    return metadata
+
   def load_data(self):
+    self.global_config['data'] = {}
+
     for dl in self.data_loaders:
       print("Loading data for " + dl.name + '...')
-      self.data[dl.name] = dl.load()
+      self.global_config['data'][dl.name] = dl.load()
 
   def end_build(self):
     pass
@@ -140,23 +169,23 @@ class Presite:
       #print('Processing page ' + p + '...')
       ext = os.path.splitext(p)
       
-      sfg = SourceFileGenerator('./pages/' + p, './output/site/' + ext[0] + '.html', {'data': self.data})
+      sfg = SourceFileGenerator('./pages/' + p, './output/site/' + ext[0] + '.html', self.global_config)
       sfg.generate(self)
 
   def build_posts(self):
     for p in self.list_posts():
       date = p[0:10].split('_')
       slug = p[11:]
-      postdate = datetime.date(int(date[0]), int(date[1]), int(date[2]))
+      postdate = datetime.datetime(int(date[0]), int(date[1]), int(date[2]))
 
-      if postdate <= datetime.date.today():
+      if postdate <= datetime.datetime.now():
         #print('Processing post ' + p + '...')
         ext = os.path.splitext(p)
         slugext = os.path.splitext(slug)
       
         outpath = './output/site/' + str(postdate.year) + '/' + str(postdate.month).rjust(2, '0') + '/' + str(postdate.day).rjust(2, '0') + '/' + slugext[0] + '.html'
 
-        sfg = SourceFileGenerator('./posts/' + p, outpath, {'data': self.data})
+        sfg = SourceFileGenerator('./posts/' + p, outpath, self.global_config)
         sfg.generate(self)
       else:
         print('Skipped post ' + p + '...')
