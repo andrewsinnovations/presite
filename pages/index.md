@@ -21,7 +21,7 @@ Presite, like most static site generators, has the concept of "posts." Here are 
 
 {% for p in posts|sort(attribute='publish_date', reverse=True) %}
 
-- [{{p.title}}]({{p.url}}) - {{p.publish_date.strftime("%m/%d/%Y")}}
+- [{{p.title}}](./{{p.url}}) - {{p.publish_date.strftime("%m/%d/%Y")}}
 
 {% endfor %}
 

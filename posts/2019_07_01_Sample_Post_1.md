@@ -1,6 +1,7 @@
 ---
 template: post
 title: My First Post
+author: David
 ---
 ## My First Post
 
