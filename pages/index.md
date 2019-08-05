@@ -14,7 +14,7 @@ Presite supports pages and posts written in Markdown or in HTML:
 * Item 1
 * Item 2
 * Item 3
-
+* Global Configuration value example: {{global_config_text}}
 -----
 
 # Posts

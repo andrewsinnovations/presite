@@ -117,7 +117,7 @@ class Presite:
         self.build_config = json.load(f)
 
     if os.path.exists('./global_config.json'):
-      with open('./build_config.json', 'r') as f:
+      with open('./global_config.json', 'r') as f:
         self.global_config = json.load(f)
 
     if os.path.exists('./output'):
@@ -211,7 +211,7 @@ class Presite:
     for p in pages:
       #print('Processing page ' + p + '...')
       ext = os.path.splitext(p)
-      
+
       sfg = SourceFileGenerator('./pages/' + p, './output/site/' + ext[0] + '.html', self.global_config)
       sfg.generate(self)
 
